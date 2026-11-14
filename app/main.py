@@ -1,7 +1,9 @@
 from fastapi import Depends, FastAPI, HTTPException, Response, status
+from app.product_client import get_product_fetcher
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy import select 
+from sqlalchemy import select
+import httpx
 
 from app.schemas import UserCreate, UserRead
 from app.database import engine, get_db
@@ -12,6 +14,20 @@ app = FastAPI(title="Lab 1 - FastAPI User API")
 
 
 users: list[UserCreate] = []
+
+@app.get("/api/products/{product_id}") 
+def get_remote_product( 
+    product_id: int, 
+    product_fetcher=Depends(get_product_fetcher), 
+): 
+  try: 
+        return product_fetcher(product_id) 
+  except httpx.HTTPStatusError as exc: 
+    if exc.response.status_code == 404: 
+       raise HTTPException(404, "Product not found") from exc 
+  except httpx.RequestError as exc: 
+      raise HTTPException(503, "Product service unavailable") from exc 
+
 
 
 @app.get("/health")
